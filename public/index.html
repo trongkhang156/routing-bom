@@ -15,36 +15,41 @@
       justify-content: center;
       align-items: center;
       margin: 0;
+      overflow: hidden;
     }
     .upload-box {
       background: #fff;
       padding: 40px 50px;
       border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
       text-align: center;
-      max-width: 420px;
+      max-width: 440px;
       width: 100%;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: fadeIn 0.7s ease;
+      position: relative;
+      z-index: 2;
     }
-    .upload-box:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     h2 {
       color: #333;
       margin-bottom: 20px;
+      font-weight: 600;
     }
     input[type="file"] {
-      padding: 10px;
+      padding: 12px;
       border: 2px dashed #007bff;
       border-radius: 12px;
-      background: #f1f8ff;
+      background: #f8fbff;
       width: 100%;
       cursor: pointer;
       transition: all 0.3s ease;
     }
     input[type="file"]:hover {
       background: #e9f3ff;
+      border-color: #00b0ff;
     }
     button {
       margin-top: 20px;
@@ -63,67 +68,108 @@
       transform: translateY(-2px);
       box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
     }
-    #msg {
-      margin-top: 20px;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid #ccc;
-      border-top: 3px solid #007bff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
-    }
-    .download-template {
+    .download-template, .link-import {
       margin-top: 25px;
       display: inline-block;
       text-decoration: none;
-      background: #f1f8ff;
-      border: 2px solid #007bff;
       padding: 10px 18px;
       border-radius: 10px;
-      color: #007bff;
       font-weight: 600;
       transition: all 0.3s ease;
+    }
+    .download-template {
+      background: #f1f8ff;
+      border: 2px solid #007bff;
+      color: #007bff;
     }
     .download-template:hover {
       background: #007bff;
       color: #fff;
     }
+    .link-import {
+      background: #00c851;
+      color: #fff;
+      border: none;
+      margin-top: 12px;
+      box-shadow: 0 4px 10px rgba(0,200,81,0.3);
+    }
+    .link-import:hover {
+      background: #009e3e;
+      transform: translateY(-2px);
+    }
+    #msg {
+      margin-top: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    /* Popup loading */
+    .overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(5px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #ccc;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 16px;
+      color: #007bff;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
   <div class="upload-box">
-    <h2>📦 Upload File Excel Routing BOM của Kế Hoạch</h2>
+    <h2>📦 Upload File Routing BOM của Kế Hoạch</h2>
     <form id="uploadForm" enctype="multipart/form-data">
       <input type="file" name="file" accept=".xlsx, .xls" required />
       <br />
       <button type="submit">⬆️ Tải lên & Xử lý</button>
     </form>
 
-   <a style="font-size: 8px;" class="download-template" 
-   href="https://drive.google.com/uc?export=download&id=197gjQ0LBTPAjXu6I7dgboOTJ_17edkW3">
-  📥 Tải file mẫu của kế hoạch nếu chưa có <b>tại đây</b>
-  </a>
+    <a class="download-template" 
+       href="https://drive.google.com/uc?export=download&id=197gjQ0LBTPAjXu6I7dgboOTJ_17edkW3">
+      📥 Tải file mẫu kế hoạch
+    </a>
+
+    <a class="link-import" href="https://resource-bom.onrender.com/" target="_blank">
+      💰 Đi tới trang Import Chi Phí
+    </a>
 
     <p id="msg"></p>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Đang xử lý file, vui lòng chờ...</div>
   </div>
 
   <script>
     const form = document.getElementById("uploadForm");
     const msg = document.getElementById("msg");
+    const overlay = document.getElementById("overlay");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      msg.innerHTML = 'Đang xử lý... <span class="loading"></span>';
+      msg.innerHTML = "";
+      overlay.style.display = "flex"; // Hiện popup loading
+
       const formData = new FormData(form);
 
       try {
@@ -136,11 +182,14 @@
         a.href = url;
         a.download = "Routing_result.xlsx";
         a.click();
+
         msg.innerHTML = "✅ Xử lý thành công, file đã được tải về!";
         msg.style.color = "green";
       } catch (err) {
         msg.innerHTML = "❌ Lỗi khi xử lý file.";
         msg.style.color = "red";
+      } finally {
+        overlay.style.display = "none"; // Ẩn popup sau khi xong
       }
     });
   </script>
