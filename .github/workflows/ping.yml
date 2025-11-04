@@ -1,0 +1,14 @@
+name: Keep Render App Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # Mỗi 10 phút ping một lần
+  workflow_dispatch:  # Cho phép chạy thủ công nếu muốn
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gửi request ping tới Render
+        run: |
+          curl -s https://resource-bom.onrender.com/health || echo "Render app không phản hồi"
