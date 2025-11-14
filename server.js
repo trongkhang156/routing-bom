@@ -69,75 +69,95 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     // Lần 2: xuất dữ liệu theo dấu X
-    for (let r = 4; r < dataBOM.length; r++) {
-      const row = dataBOM[r] || [];
-      const ma5 = `${row[2] || ""}`.trim();
-      let version = `${row[3] || ""}`.trim();
-      if (!ma5 || !version) continue;
-      if (!listYC.has(ma5)) continue;
+// Lần 2: xuất dữ liệu theo dấu X (phiên bản cập nhật)
+for (let r = 4; r < dataBOM.length; r++) {
+  const row = dataBOM[r] || [];
+  const ma5 = `${row[2] || ""}`.trim();
+  let version = `${row[3] || ""}`.trim();
+  if (!ma5 || !version) continue;
+  if (!listYC.has(ma5)) continue;
 
-      for (const proc of processes) {
-        const cellVal = row[proc.colIndex];
-        const hasX = cellVal && `${cellVal}`.trim().toUpperCase() === "X";
-        if (!hasX) continue;
+  // Tìm index của công đoạn cuối cùng có dấu X (nếu có)
+  let lastProcIndex = -1;
+  for (let i = 0; i < processes.length; i++) {
+    const cellVal = row[processes[i].colIndex];
+    const hasX = cellVal && `${cellVal}`.trim().toUpperCase() === "X";
+    if (hasX) lastProcIndex = i;
+  }
 
-        let finalCode;
-        if (proc.suffix) {
-          finalCode = "4" + ma5.slice(1) + proc.suffix;
-        } else {
-          finalCode = ma5;
-        }
+  for (let i = 0; i < processes.length; i++) {
+    const proc = processes[i];
+    const cellVal = row[proc.colIndex];
+    const hasX = cellVal && `${cellVal}`.trim().toUpperCase() === "X";
+    if (!hasX) continue;
 
-  
-        // xử lý version: nếu là 3 → 4, nếu là 4 → 5
-        let versionNum = parseInt(version.replace(/\D/g, "")) || 0;
-        if (versionNum === 3) versionNum = 4;
-        else if (versionNum === 4) versionNum = 5;
+    // Tạo finalCode theo suffix (giữ nguyên logic cũ)
+    let finalCode;
+    if (proc.suffix) {
+      finalCode = "4" + ma5.slice(1) + proc.suffix;
+    } else {
+      finalCode = ma5;
+    }
 
-        // ánh xạ routing name sang routing no
-        const routingMap = {
-          "Extrusion": 1,
-          "UV": 2,
-          "UV+Bigsheet": 11,
-          "Profiling": 4,
-          "Packaging": 6,
-          "Profiling+Bevel": 12,
-          "Padding+Packaging": 8
-        };
+    // xử lý version: nếu là 3 → 4, nếu là 4 → 5
+    let versionNum = parseInt(version.replace(/\D/g, "")) || 0;
+    if (versionNum === 3) versionNum = 4;
+    else if (versionNum === 4) versionNum = 5;
 
-        const routingNo = routingMap[proc.name] || "";
-        const inventoryID_Final = (proc.name === "Profiling") ? ma5 : finalCode;
+    // ánh xạ routing name sang routing no
+    const routingMap = {
+      "Extrusion": 1,
+      "UV": 2,
+      "UV+Bigsheet": 11,
+      "Profiling": 4,
+      "Packaging": 6,
+      "Profiling+Bevel": 12,
+      "Padding+Packaging": 8
+    };
+    const routingNo = routingMap[proc.name] || "";
+
+    // Nếu đây là công đoạn cuối cùng và không phải Packaging / Padding+Packaging
+    // thì InventoryID = mã đầu 5; ngược lại giữ finalCode.
+    const isLastProc = i === lastProcIndex;
+    const isPackagingOrPaddingPackaging =
+      proc.name === "Packaging" || proc.name === "Padding+Packaging";
+
+    const inventoryID_Final = (isLastProc && !isPackagingOrPaddingPackaging)
+      ? ma5
+      : finalCode;
+
+    results.push({
+      "mã đầu 5": ma5,
+      inventoryid: inventoryID_Final,
+      inventoryname: "",
+      routingname: proc.name,
+      version: versionNum,
+      description: "",
+      mftimes: 100,
+      no: "",
+      routingno: routingNo,
+    });
+
+    // ✅ Clone PACKAGING thêm dòng version 99 nếu là version nhỏ nhất
+    if (proc.name === "Packaging") {
+      const verNum = parseInt(version.replace(/\D/g, "")) || 0;
+      if (verNum === minVersionMap[ma5]) {
         results.push({
           "mã đầu 5": ma5,
-          inventoryid: inventoryID_Final,
+          inventoryid: ma5,
           inventoryname: "",
-          routingname: proc.name,
-          version: versionNum,
+          routingname: "Packaging",
+          version: 99,
           description: "",
           mftimes: 100,
           no: "",
           routingno: routingNo,
         });
-
-        // ✅ Clone PACKAGING thêm dòng version 99 nếu là version nhỏ nhất
-        if (proc.name === "Packaging") {
-          const verNum = parseInt(version.replace(/\D/g, "")) || 0;
-          if (verNum === minVersionMap[ma5]) {
-            results.push({
-              "mã đầu 5": ma5,
-              inventoryid: inventoryID_Final,
-              inventoryname: "",
-              routingname: "Packaging",
-              version: 99,
-              description: "",
-              mftimes: 100,
-              no: "",
-              routingno: routingNo,
-            });
-          }
-        }
       }
     }
+  }
+}
+
 
     // ==== Xuất file Excel ====
     const outWb = new ExcelJS.Workbook();
