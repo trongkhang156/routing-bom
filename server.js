@@ -106,10 +106,10 @@ app.post("/upload", upload.single("file"), async (req, res) => {
         };
 
         const routingNo = routingMap[proc.name] || "";
-
+        const inventoryID_Final = (proc.name === "Profiling") ? ma5 : finalCode;
         results.push({
           "mã đầu 5": ma5,
-          inventoryid: finalCode,
+          inventoryid: inventoryID_Final,
           inventoryname: "",
           routingname: proc.name,
           version: versionNum,
@@ -125,7 +125,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
           if (verNum === minVersionMap[ma5]) {
             results.push({
               "mã đầu 5": ma5,
-              inventoryid: ma5,
+              inventoryid: inventoryID_Final,
               inventoryname: "",
               routingname: "Packaging",
               version: 99,
